@@ -1,9 +1,11 @@
 import {mock} from 'jest-mock-extended'
-import { Connection } from 'amqplib'
+import { Channel, Connection } from 'amqplib'
 
 import RabbitmqMessageBroker from '../rabbitmq-message-broker'
 
-const connectionMock = mock<Connection>()
+const connectionString = 'amqp://localhost:5672';
+const connectionMock = mock<Connection>();
+const channelMock = mock<Channel>();
 jest.mock('amqplib', () => {
     const originalModule = jest.requireActual('amqplib');
 
@@ -18,8 +20,17 @@ jest.mock('amqplib', () => {
 describe('Rabbitmq Message Broker', () => {
 
     it('Deve instanciar uma conexão com o rabbit', async () => {
-        const connectionString = 'amqp://localhost:5672';
         const broker = new RabbitmqMessageBroker(connectionString);           
         await expect(broker.connect()).toBeTruthy()
+    })
+
+    it('should publish a message', async () => {
+        const topic = 'any_topic';
+        jest.spyOn(connectionMock, 'createChannel').mockResolvedValueOnce(channelMock);
+        const broker = new RabbitmqMessageBroker(connectionString);
+        await broker.connect()
+        jest.spyOn(broker['channel'], 'assertExchange').mockResolvedValueOnce({exchange: topic });
+        jest.spyOn(broker['channel'], 'publish').mockImplementationOnce(() => true)
+        await expect(broker.publish({topic, message: 'any_message'})).toBeTruthy()
     })
 })
