@@ -2,6 +2,7 @@ import {mock} from 'jest-mock-extended'
 import { Channel, Connection } from 'amqplib'
 
 import RabbitmqMessageBroker from '../rabbitmq-message-broker'
+import { MessageParams } from 'message-broker';
 
 const connectionString = 'amqp://localhost:5672';
 const connectionMock = mock<Connection>();
@@ -26,11 +27,12 @@ describe('Rabbitmq Message Broker', () => {
 
     it('should publish a message', async () => {
         const topic = 'any_topic';
+        const message: MessageParams = {topic, message: 'any_message'};
         jest.spyOn(connectionMock, 'createChannel').mockResolvedValueOnce(channelMock);
         const broker = new RabbitmqMessageBroker(connectionString);
         await broker.connect()
         jest.spyOn(broker['channel'], 'assertExchange').mockResolvedValueOnce({exchange: topic });
         jest.spyOn(broker['channel'], 'publish').mockImplementationOnce(() => true)
-        await expect(broker.publish({topic, message: 'any_message'})).toBeTruthy()
+        await expect(broker.publish(message)).toBeTruthy()
     })
 })
