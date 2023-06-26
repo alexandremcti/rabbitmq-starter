@@ -1,38 +1,37 @@
-import {mock} from 'jest-mock-extended'
-import { Channel, Connection } from 'amqplib'
-
-import RabbitmqMessageBroker from '../rabbitmq-message-broker'
+import * as http from 'http'
+import request from 'supertest'
 import { MessageParams } from 'message-broker';
+import server from '../server'
+import RabbitmqMessageBroker from '../rabbitmq-message-broker'
 
-const connectionString = 'amqp://localhost:5672';
-const connectionMock = mock<Connection>();
-const channelMock = mock<Channel>();
-jest.mock('amqplib', () => {
-    const originalModule = jest.requireActual('amqplib');
-
-    return {
-        __esModule: true,
-        ...originalModule,
-        connect: () => connectionMock,
-    }
-})
+let app: http.Server;
+let broker: RabbitmqMessageBroker
+const topic = 'any_topic';
 
 
 describe('Rabbitmq Message Broker', () => {
-
-    it('Deve instanciar uma conexão com o rabbit', async () => {
-        const broker = new RabbitmqMessageBroker(connectionString);           
-        await expect(broker.connect()).toBeTruthy()
+    
+    beforeAll(async () => {
+        broker = new RabbitmqMessageBroker('amqp://admin:123456@localhost:5672');
+        await broker.connect();
+        app = server({
+            broker
+        })
+        .listen(3333, () => console.log('server running'))
     })
 
-    it('should publish a message', async () => {
-        const topic = 'any_topic';
-        const message: MessageParams = {topic, message: 'any_message'};
-        jest.spyOn(connectionMock, 'createChannel').mockResolvedValueOnce(channelMock);
-        const broker = new RabbitmqMessageBroker(connectionString);
-        await broker.connect()
-        jest.spyOn(broker['channel'], 'assertExchange').mockResolvedValueOnce({exchange: topic });
-        jest.spyOn(broker['channel'], 'publish').mockImplementationOnce(() => true)
-        await expect(broker.publish(message)).toBeTruthy()
+    afterAll(async () => {
+        app.close()
+        await broker.close()
     })
+
+    it('Deve publicar uma mensagem', async () => {
+        const event: MessageParams = {topic, message: 'any_message'};
+        const spy = jest.spyOn(RabbitmqMessageBroker.prototype, 'publish');
+
+        await request(app).post('/').send(event); 
+        expect(spy).toBeCalled()
+        expect(spy.mock.calls[0][0].message).toBe(event.message)
+        expect(spy.mock.calls[0][0].topic).toBe(event.topic)
+    });
 })

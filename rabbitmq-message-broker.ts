@@ -11,16 +11,19 @@ export default class RabbitmqMessageBroker implements MessageBroker {
     }
     
     async connect(): Promise<void> {
+        console.log('criando a conexão')
         this.connection = await connect(this.uri);
+        console.log('criando o canal')
         this.channel = await this.connection.createChannel(); 
     }
     
     async publish<t extends MessageParams>(event: t): Promise<void> {
         const {topic, message} = event;
+        console.log('criando/buscando exchange')
         await this.channel.assertExchange(topic, 'fanout', {durable: true} );
+        console.log('publicando evento')
         const result = this.channel.publish(topic, '', Buffer.from(this.parseToString(message)))
         console.log('retorno da publicação do evento --> ', result)
-        
     }
     
     private parseToString(message: any): string {
@@ -47,5 +50,12 @@ export default class RabbitmqMessageBroker implements MessageBroker {
             this.channel.ack(value);
         })
         console.log(`resultado do consumo ${result.consumerTag}`);
+    }
+
+    async close(): Promise<void> {
+        await this.channel.close();
+        console.log('channel closed');
+        await this.connection.close();
+        console.log('channel closed');
     }
 }
