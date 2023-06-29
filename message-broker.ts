@@ -6,7 +6,8 @@ export type MessageParams = {
 }
 
 export interface MessageBroker{
-    publish<t extends MessageParams> (message: t): Promise<any>
+    publish<t extends MessageParams> (message: t): Promise<void>
     subscribe(topic: string, handler: Handler): Promise<void>
     consume<k>(eventName: string): Promise<any>
+    createTopic(topic: string, options?: any): Promise<void>
 }

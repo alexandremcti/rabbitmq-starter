@@ -20,10 +20,19 @@ export default class RabbitmqMessageBroker implements MessageBroker {
     async publish<t extends MessageParams>(event: t): Promise<void> {
         const {topic, message} = event;
         console.log('criando/buscando exchange')
-        await this.channel.assertExchange(topic, 'fanout', {durable: true} );
+        await this.createTopic(topic);
         console.log('publicando evento')
         const result = this.channel.publish(topic, '', Buffer.from(this.parseToString(message)))
         console.log('retorno da publicação do evento --> ', result)
+    }
+
+    async createTopic(topic: string, options?: any): Promise<void> {
+        console.log('criando exchange');
+        const channelConfig = {
+            type: options?.type ?? 'fanout',
+            durable: options?.durable ?? true,
+        };
+        await this.channel.assertExchange(topic, channelConfig.type, {durable: channelConfig.durable} );
     }
     
     private parseToString(message: any): string {
@@ -37,15 +46,18 @@ export default class RabbitmqMessageBroker implements MessageBroker {
 
     async subscribe(topic: string, handler: Handler): Promise<void> {
         this.consumers[topic] = handler;
+        console.log('buscando fila');
         await this.channel.assertQueue(topic, {durable: true});
         const queue = topic;
+        console.log('realizando bind da fila no tópico');
         await this.channel.bindQueue(queue, topic, '')
     }
 
     async consume(eventName: string): Promise<void> {
         const result = await this.channel.consume(eventName, async (value) => {
             const {content} = value;
-            const event = content.toString();
+            const event = JSON.parse(content.toString());
+            console.log(`executando handler`);
             await this.consumers[eventName].handle(event);
             this.channel.ack(value);
         })
@@ -56,6 +68,6 @@ export default class RabbitmqMessageBroker implements MessageBroker {
         await this.channel.close();
         console.log('channel closed');
         await this.connection.close();
-        console.log('channel closed');
+        console.log('connection closed');
     }
 }
