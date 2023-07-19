@@ -58,11 +58,13 @@ module.exports = {
   // Force coverage collection from ignored files using an array of glob patterns
   // forceCoverageMatch: [],
 
+  testTimeout: 20000,
+
   // A path to a module which exports an async function that is triggered once before all test suites
-  // globalSetup: undefined,
+  globalSetup: '<rootDir>/tests/config/start-container.ts',
 
   // A path to a module which exports an async function that is triggered once after all test suites
-  // globalTeardown: undefined,
+  globalTeardown: '<rootDir>/tests/config/stop-container.ts',
 
   // A set of global variables that need to be available in all test environments
   // globals: {},
